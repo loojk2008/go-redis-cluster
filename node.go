@@ -32,7 +32,8 @@ type redisConn struct {
 }
 
 type redisNode struct {
-	address string
+	address  string
+	password string
 
 	conns     list.List
 	keepAlive int
@@ -86,6 +87,12 @@ func (node *redisNode) getConn() (*redisConn, error) {
 			bw:           bufio.NewWriter(c),
 			readTimeout:  node.readTimeout,
 			writeTimeout: node.writeTimeout,
+		}
+
+		if len(node.password) > 0 {
+			_ = conn.send("AUTH", node.password)
+			_ = conn.flush()
+			_, _ = conn.receive()
 		}
 
 		return conn, nil

@@ -2,17 +2,18 @@ package redis
 
 import (
     "errors"
-    "log"
     "fmt"
-    "time"
-    "sync"
-    "strings"
+    "log"
     "strconv"
+    "strings"
+    "sync"
+    "time"
 )
 
 // Options is used to initialize a new redis cluster.
 type Options struct {
-    StartNodes	    []string	    // Startup nodes
+    StartNodes      []string // Startup nodes
+    Password        string
 
     ConnTimeout	    time.Duration   // Connection timeout
     ReadTimeout	    time.Duration   // Read timeout
@@ -52,32 +53,36 @@ type updateMesg struct {
 // NewCluster create a new redis cluster client with specified options.
 func NewCluster(options *Options) (*Cluster, error) {
     cluster := &Cluster{
-	nodes: make(map[string]*redisNode),
-	connTimeout: options.ConnTimeout,
-	readTimeout: options.ReadTimeout,
-	writeTimeout: options.WriteTimeout,
-	keepAlive: options.KeepAlive,
-	aliveTime: options.AliveTime,
-	updateList: make(chan updateMesg),
+        nodes:        make(map[string]*redisNode),
+        connTimeout:  options.ConnTimeout,
+        readTimeout:  options.ReadTimeout,
+        writeTimeout: options.WriteTimeout,
+        keepAlive:    options.KeepAlive,
+        aliveTime:    options.AliveTime,
+        updateList:   make(chan updateMesg),
     }
 
     for i := range options.StartNodes {
-	node := &redisNode{
-	    address: options.StartNodes[i],
-	    connTimeout: options.ConnTimeout,
-	    readTimeout: options.ReadTimeout,
-	    writeTimeout: options.WriteTimeout,
-	    keepAlive: options.KeepAlive,
-	    aliveTime: options.AliveTime,
-	}
+        node := &redisNode{
+            address:      options.StartNodes[i],
+            connTimeout:  options.ConnTimeout,
+            readTimeout:  options.ReadTimeout,
+            writeTimeout: options.WriteTimeout,
+            keepAlive:    options.KeepAlive,
+            aliveTime:    options.AliveTime,
+        }
 
-	err := cluster.update(node)
-	if err != nil {
-	    continue
-	} else {
-	    go cluster.handleUpdate()
-	    return cluster, nil
-	}
+        if len(options.Password) > 0 {
+            node.password = options.Password
+        }
+
+        err := cluster.update(node)
+        if err != nil {
+            continue
+        } else {
+            go cluster.handleUpdate()
+            return cluster, nil
+        }
     }
 
     return nil, fmt.Errorf("NewCluster: no valid node in %v", options.StartNodes)
